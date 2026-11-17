@@ -14,6 +14,9 @@ enum Palette {
     static let danger = Color(red: 1.0, green: 0.36, blue: 0.38)
     static let calendar = Color(red: 0.98, green: 0.62, blue: 0.80)
     static let lunar = Color(red: 0.99, green: 0.84, blue: 0.47)
+    static let cpu = Color(red: 0.40, green: 0.84, blue: 1.0)
+    static let memory = Color(red: 0.70, green: 0.56, blue: 1.0)
+    static let disk = Color(red: 0.98, green: 0.62, blue: 0.80)
 }
 
 struct DashboardView: View {
@@ -252,16 +255,20 @@ struct DayProgress: View {
 
 struct AgendaCard: View {
     @EnvironmentObject var feed: CalendarFeed
+    @AppStorage(Widget.system.key) private var showSystem = true
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { context in
             let now = context.date
             HStack(alignment: .top, spacing: 18) {
                 MonthGrid(now: now, eventDays: eventDays)
-                    .frame(width: 320)
-                Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1)
-                upNext(now: now)
-                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    .frame(width: showSystem ? 320 : nil)
+                    .frame(maxWidth: showSystem ? nil : .infinity)
+                if showSystem {
+                    Rectangle().fill(Color.white.opacity(0.08)).frame(width: 1)
+                    SystemPanel()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                }
             }
             .padding(16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -283,56 +290,147 @@ struct AgendaCard: View {
         }
         return days
     }
+}
 
-    @ViewBuilder
-    private func upNext(now: Date) -> some View {
-        let upcoming = feed.events.filter { $0.end > now }
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "calendar")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(Palette.calendar)
-                Text("UP NEXT")
+// MARK: This Mac
+
+/// CPU with a 2-minute sparkline, then memory and disk bars.
+struct SystemPanel: View {
+    @EnvironmentObject var monitor: SystemMonitor
+
+    var body: some View {
+        let s = monitor.snapshot
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 7) {
+                Image(systemName: "cpu")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Palette.cpu)
+                Text("THIS MAC")
                     .font(.system(size: 11, weight: .bold, design: .rounded))
                     .tracking(1.5)
                     .foregroundStyle(Palette.faint)
-            }
-            switch feed.access {
-            case .unknown:
-                emptyState(icon: "lock.open", title: "Calendar access", note: "Allow access on the Mac's prompt")
-            case .denied:
-                emptyState(icon: "lock", title: "No calendar access",
-                           note: "Privacy & Security → Calendars")
-            case .granted:
-                if upcoming.isEmpty {
-                    emptyState(icon: "sun.max", title: "All clear", note: "Nothing scheduled this week")
-                } else {
-                    VStack(alignment: .leading, spacing: 9) {
-                        ForEach(upcoming.prefix(4)) { AgendaRow(event: $0, now: now) }
-                    }
+                Spacer(minLength: 4)
+                if let boot = s.bootDate {
+                    Text("up \(uptimeLabel(since: boot))")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.faint)
                 }
             }
-            Spacer(minLength: 0)
+
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("CPU")
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Palette.ink.opacity(0.85))
+                    Spacer(minLength: 4)
+                    HStack(alignment: .firstTextBaseline, spacing: 1) {
+                        Text("\(Int(s.cpuPercent.rounded()))")
+                            .font(.system(size: 24, weight: .semibold, design: .rounded))
+                        Text("%")
+                            .font(.system(size: 12, weight: .medium, design: .rounded))
+                            .foregroundStyle(Palette.muted)
+                    }
+                    .monospacedDigit()
+                    .foregroundStyle(severityColor(s.cpuPercent, accent: Palette.ink))
+                }
+                Sparkline(values: s.cpuHistory, color: severityColor(s.cpuPercent, accent: Palette.cpu))
+                    .frame(height: 30)
+                Text("\(s.cores) cores · load \(String(format: "%.2f", s.load1))")
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.faint)
+            }
+            .padding(.top, 8)
+
+            Spacer(minLength: 8)
+            MetricBar(label: "Memory", percent: s.memPercent, accent: Palette.memory,
+                      detail: "\(bytesLabel(s.memUsed)) / \(bytesLabel(s.memTotal))")
+            Spacer(minLength: 8)
+            MetricBar(label: "Disk", percent: s.diskPercent, accent: Palette.disk,
+                      detail: "\(diskLabel(s.diskFree)) free")
         }
     }
 
-    private func emptyState(icon: String, title: String, note: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Spacer(minLength: 0)
-            Image(systemName: icon)
-                .font(.system(size: 30, weight: .light))
-                .foregroundStyle(LinearGradient(colors: [Palette.lunar, Palette.calendar],
-                                                startPoint: .topLeading, endPoint: .bottomTrailing))
-                .shadow(color: Palette.calendar.opacity(0.5), radius: 10)
-            Text(title)
-                .font(.system(size: 17, weight: .semibold, design: .rounded))
-                .foregroundStyle(Palette.ink)
-            Text(note)
-                .font(.system(size: 12, weight: .medium, design: .rounded))
-                .foregroundStyle(Palette.muted)
-                .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
+    private func uptimeLabel(since boot: Date) -> String {
+        let seconds = Int(Date().timeIntervalSince(boot))
+        let days = seconds / 86_400, hours = (seconds % 86_400) / 3600, minutes = (seconds % 3600) / 60
+        if days > 0 { return "\(days)d \(hours)h" }
+        return hours > 0 ? "\(hours)h \(minutes)m" : "\(minutes)m"
+    }
+}
+
+struct MetricBar: View {
+    var label: String
+    var percent: Double
+    var accent: Color
+    var detail: String
+
+    var body: some View {
+        let color = severityColor(percent, accent: accent)
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(label)
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Palette.ink.opacity(0.85))
+                Text("\(Int(percent.rounded()))%")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(color)
+                Spacer(minLength: 4)
+                Text(detail)
+                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .foregroundStyle(Palette.muted)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .monospacedDigit()
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(color.opacity(0.14))
+                    Capsule()
+                        .fill(LinearGradient(colors: [color.opacity(0.6), color], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(geo.size.width * min(percent / 100, 1), 4))
+                        .shadow(color: color.opacity(0.5), radius: 4)
+                }
+            }
+            .frame(height: 6)
+            .animation(.easeInOut(duration: 0.6), value: percent)
         }
+    }
+}
+
+/// Filled line of recent CPU samples on a fixed 0–100 scale.
+struct Sparkline: View {
+    var values: [Double]
+    var color: Color
+
+    var body: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            let n = SystemMonitor.historyLength
+            let step = w / CGFloat(max(n - 1, 1))
+            // Right-align so the newest sample sits at the edge while history fills in.
+            let points = values.enumerated().map { i, v in
+                CGPoint(x: w - CGFloat(values.count - 1 - i) * step,
+                        y: h - CGFloat(min(max(v, 0), 100) / 100) * (h - 2) - 1)
+            }
+            ZStack {
+                Capsule().fill(Color.white.opacity(0.06)).frame(height: 1).position(x: w / 2, y: h - 0.5)
+                if points.count > 1 {
+                    Path { p in
+                        p.move(to: CGPoint(x: points[0].x, y: h))
+                        points.forEach { p.addLine(to: $0) }
+                        p.addLine(to: CGPoint(x: points.last!.x, y: h))
+                        p.closeSubpath()
+                    }
+                    .fill(LinearGradient(colors: [color.opacity(0.35), color.opacity(0.02)], startPoint: .top, endPoint: .bottom))
+                    Path { p in p.addLines(points) }
+                        .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+                        .shadow(color: color.opacity(0.6), radius: 4)
+                }
+            }
+        }
+        .accessibilityLabel("CPU over the last two minutes")
     }
 }
 
@@ -435,66 +533,6 @@ struct DayCell: View {
 
 extension String {
     var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
-}
-
-struct AgendaRow: View {
-    var event: AgendaEvent
-    var now: Date
-
-    var body: some View {
-        let live = event.start <= now && event.end > now && !event.isAllDay
-        HStack(spacing: 10) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(event.color)
-                .frame(width: 4, height: 32)
-                .shadow(color: event.color.opacity(live ? 0.8 : 0), radius: 6)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(event.title)
-                    .font(.system(size: 14, weight: .semibold, design: .rounded))
-                    .foregroundStyle(Palette.ink)
-                    .lineLimit(1)
-                Text(timeLabel)
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.muted)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            if live {
-                Text("NOW")
-                    .font(.system(size: 10, weight: .heavy, design: .rounded))
-                    .tracking(1)
-                    .padding(.horizontal, 7).padding(.vertical, 3)
-                    .background(Capsule().fill(event.color.opacity(0.3)))
-                    .foregroundStyle(Palette.ink)
-            } else if !event.isAllDay, event.start > now, event.start.timeIntervalSince(now) < 3 * 3600 {
-                Text(inLabel)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(Palette.calendar)
-            }
-        }
-    }
-
-    private var dayPrefix: String {
-        let cal = Calendar.current
-        if cal.isDate(event.start, inSameDayAs: now) || event.start < now { return "" }
-        if let tomorrow = cal.date(byAdding: .day, value: 1, to: now), cal.isDate(event.start, inSameDayAs: tomorrow) {
-            return "Tomorrow · "
-        }
-        return event.start.formatted(.dateTime.weekday(.abbreviated).day()) + " · "
-    }
-
-    private var timeLabel: String {
-        if event.isAllDay { return dayPrefix + "All day" }
-        let t = Date.FormatStyle.dateTime.hour(.twoDigits(amPM: .omitted)).minute(.twoDigits)
-        return dayPrefix + "\(event.start.formatted(t))–\(event.end.formatted(t))"
-    }
-
-    private var inLabel: String {
-        let minutes = Int(event.start.timeIntervalSince(now) / 60)
-        return minutes < 60 ? "in \(max(minutes, 1))m" : "in \(minutes / 60)h \(minutes % 60)m"
-    }
 }
 
 // MARK: Card chrome

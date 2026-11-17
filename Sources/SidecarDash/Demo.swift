@@ -7,6 +7,12 @@ enum Demo {
 
     @MainActor
     static func load(store: DashboardStore, calendar: CalendarFeed) {
+        // Sample billing that outranks saved settings for this run only; nothing is written.
+        UserDefaults.standard.setVolatileDomain([
+            Billing.claudePriceKey: Billing.defaultClaudePrice,
+            Billing.claudeDayKey: 3,
+            Billing.opencodePriceKey: Billing.defaultOpenCodePrice,
+        ], forName: UserDefaults.argumentDomain)
         let now = Date()
         store.claude = state(provider: "claude", now: now, """
         "usage": {"loginMethod": "Max",

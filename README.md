@@ -10,7 +10,8 @@ An always-on dashboard for an iPad used as a Sidecar screen. It's a small native
 
 - **Clock and date:** a large clock with seconds, the weekday and date, and a bar for how much of the day has passed.
 - **Vietnamese lunar date (âm lịch):** for example *Mùng 9 tháng 10 · năm Bính Ngọ*, plus the can chi of the day and month. It is computed for Vietnam time (UTC+7), which differs from the Chinese calendar on some days. Mùng 1 and Rằm are highlighted.
-- **Calendar:** a month grid (weeks start on Monday) with the lunar day under each date and dots on days with events, plus "Up next" with your next 4 events. It reads every calendar in the Mac's Calendar app, so iCloud, Google and Outlook/Exchange all work.
+- **Calendar:** a month grid (weeks start on Monday) with the lunar day under each date and dots on days with events. It reads every calendar in the Mac's Calendar app, so iCloud, Google and Outlook/Exchange all work.
+- **This Mac:** beside the month grid, live CPU (with a 2-minute graph, core count and load), memory used (counted like Activity Monitor) and free disk space (like Finder), plus uptime. CPU and memory update every 2 seconds, disk every minute; nothing leaves the Mac.
 - **Claude:** 5-hour session and weekly limits as rings, any model-specific limits, pace against the reset, and your monthly price and next charge date.
 - **OpenCode Go:** the monthly limit as a ring, the 5-hour and weekly limits, pace, price and renewal date (read automatically).
 - **DeepSeek:** API balance (paid and granted), today's spending, and a 24-hour balance chart.
@@ -72,7 +73,7 @@ The gauge icon in the menu bar has:
 |---|---|
 | Refresh Now (⌘R) | Refreshes usage and calendar. Double-tapping the dashboard does the same. |
 | Keep Screens Awake | Stops the displays sleeping. This also keeps your other monitors awake, so it is off by default. |
-| Widgets | Turn Clock & Date, Lunar Date, Calendar, Claude, OpenCode Go and DeepSeek on or off. The layout adjusts. |
+| Widgets | Turn Clock & Date, Lunar Date, Calendar, This Mac, Claude, OpenCode Go and DeepSeek on or off. The layout adjusts. |
 | Background | **Add Images…** to use your own photos (copied to `~/Library/Application Support/SidecarDash/Backgrounds`); several photos rotate every 15 minutes. **Next Image**, **Show Images Folder**, and **Use Photo Background** to switch back to the gradient. |
 | Billing… | Prices and Claude's charge day. |
 | Calendar Access… | Asks for access again and opens the Calendars privacy settings. |
@@ -95,6 +96,7 @@ The gauge icon in the menu bar has:
 | `Sources/SidecarDash/DashboardView.swift` | All dashboard views |
 | `Sources/SidecarDash/DashboardStore.swift` | Refresh timers and DeepSeek balance history |
 | `Sources/SidecarDash/CodexBarClient.swift`, `Models.swift` | Runs the CodexBar CLI and decodes its JSON |
+| `Sources/SidecarDash/SystemMonitor.swift` | CPU, memory and disk sampling |
 | `Sources/SidecarDash/CalendarFeed.swift` | Calendar events through EventKit |
 | `Sources/SidecarDash/LunarCalendar.swift` | Vietnamese lunar calendar (Hồ Ngọc Đức's algorithm) |
 | `Sources/SidecarDash/Settings.swift` | Widget switches, photo backgrounds, billing |

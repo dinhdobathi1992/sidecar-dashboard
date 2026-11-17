@@ -12,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let store = DashboardStore()
     private let calendar = CalendarFeed()
     private let background = BackgroundStore()
+    private let monitor = SystemMonitor()
     private var widgetItems: [Widget: NSMenuItem] = [:]
     private var photoItem: NSMenuItem!
     private var awakeAssertion: IOPMAssertionID = 0
@@ -24,7 +25,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         window.contentView = NSHostingView(rootView: DashboardView()
             .environmentObject(store)
             .environmentObject(calendar)
-            .environmentObject(background))
+            .environmentObject(background)
+            .environmentObject(monitor))
         window.backgroundColor = .black
         window.hasShadow = false
         window.isReleasedWhenClosed = false
@@ -47,9 +49,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         placeWindow()
         if Demo.isOn {
             Demo.load(store: store, calendar: calendar)
+            monitor.loadDemo()
             return
         }
         store.start()
+        monitor.start()
         calendar.promptShowing = { [weak self] showing in
             self?.window.level = showing ? .normal : .statusBar
             if showing { NSApp.activate(ignoringOtherApps: true) }

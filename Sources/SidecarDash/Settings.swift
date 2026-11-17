@@ -3,13 +3,14 @@ import ImageIO
 
 /// Widgets that can be switched on or off from the menu bar. All start on.
 enum Widget: String, CaseIterable {
-    case clock, lunar, calendar, claude, opencode, deepseek
+    case clock, lunar, calendar, system, claude, opencode, deepseek
 
     var title: String {
         switch self {
         case .clock: return "Clock & Date"
         case .lunar: return "Lunar Date (Âm lịch)"
         case .calendar: return "Calendar"
+        case .system: return "This Mac (CPU, Memory, Disk)"
         case .claude: return "Claude"
         case .opencode: return "OpenCode Go"
         case .deepseek: return "DeepSeek"
